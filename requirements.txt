@@ -1,6 +1,5 @@
 gmusicapi
 eyed3
-logging
 unidecode
 requests
 
