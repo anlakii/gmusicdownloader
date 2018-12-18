@@ -164,8 +164,8 @@ class Gmusicdownloader:
         for track in library:
     
             dirpath = "{}/{}/{}".format(self.outputDir, 
-                                                self.escapeName(album['albumArtist']),
-                                                self.escapeName(album['name']))
+                                                self.escapeName(track['albumArtist']),
+                                                self.escapeName(track['album']))
             dirpath = unidecode.unidecode(dirpath)
             if not os.path.isdir(dirpath):
                 os.makedirs(dirpath)
