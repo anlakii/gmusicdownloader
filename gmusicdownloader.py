@@ -38,7 +38,7 @@ class Gmusicdownloader:
 
 
     def escapeName(self, string):
-        return re.sub('[<>:"/\\\|?*]', '', string)
+        return re.sub('[<>:"/\\\|?*]|\.$', '', string)
 
     def tagTrack(self, path, track):
         audiofile = eyed3.load(path)
