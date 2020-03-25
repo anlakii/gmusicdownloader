@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 from gmusicapi import Mobileclient
+from entities import *
+from ui.colors import Colors
+
 import os
 import eyed3
 import logging
@@ -11,31 +14,22 @@ import getpass
 import re
 
 
-class bColors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+class GMusicDL:
 
-class Gmusicdownloader:
     _api = None
-    outputDir = ""
+    output_dir = ""
 
-    def __init__(self, email, password, deviceid, outputDir=os.getcwd()):
+    def __init__(self, email: str, password: str, device_id: str, output_dir:
+                 str = os.getcwd()):
         self._api = Mobileclient(False)
-        self.outputDir = outputDir
+        self.output_dir = output_dir
         print("Logging in...", end='', flush=True)
-        self._api.login(email, password, deviceid)
+        self._api.login(email, password, device_id)
         if self._api.is_authenticated():
-            print(bColors.OKGREEN + " Logged in!" + bColors.ENDC)
+            print(Colors.OKGREEN + " Logged in!" + Colors.ENDC)
         else:
-            print(bColors.FAIL + " Unable to log in!" + bColors.ENDC)
+            print(Colors.FAIL + " Unable to log in!" + Colors.ENDC)
             sys.exit(1)
-
 
     def escapeName(self, string):
         return re.sub('[<>:"/\\\|?*]|\.$', '', string)
@@ -56,14 +50,12 @@ class Gmusicdownloader:
             audiofile.tag.genre = track['genre']
         audiofile.tag.save()
 
-
     def downloadCover(self, dirpath, album):
         if os.path.exists(dirpath + '/' + 'cover.jpg'):
             return
         resp = requests.get(album['albumArtRef'])
         with open(dirpath + '/' + 'cover.jpg', 'wb') as f:
             f.write(resp.content)
-
 
     def parseSelection(self, selection):
         try:
@@ -73,13 +65,13 @@ class Gmusicdownloader:
             else:
                 items += [selection]
             for i in range(len(items)):
-                item = items[i] 
+                item = items[i]
                 if item.find('-') < 0:
                     continue
                 rng = item.split('-')
                 del items[i]
                 items += [str(i) for i in range(int(rng[0]), int(rng[1]) + 1)]
-            
+
             items = [int(i) for i in items]
             items.sort()
             return items
@@ -87,19 +79,19 @@ class Gmusicdownloader:
             raise ValueError('Invalid selection!')
 
     def downloadAlbum(self, album):
-        dirpath = "{}/{}/{}".format(self.outputDir, 
-                                            self.escapeName(album['albumArtist']),
-                                            self.escapeName(album['name']))
+        dirpath = "{}/{}/{}".format(self.output_dir,
+                                    self.escapeName(album['albumArtist']),
+                                    self.escapeName(album['name']))
         dirpath = unidecode.unidecode(dirpath)
         if not os.path.isdir(dirpath):
             os.makedirs(dirpath)
         self.downloadCover(dirpath, album)
-        
-        #Iterate over album tracks
+
+        # Iterate over album tracks
         for track in album['tracks']:
             trackId = track['nid']
             path = dirpath + "/{} {}.mp3".format(str(track['trackNumber']).zfill(2),
-                                                    self.escapeName(track['title']))
+                                                 self.escapeName(track['title']))
             path = unidecode.unidecode(path)
             if not os.path.exists(path):
                 stream = self._api.get_stream_url(trackId)
@@ -107,34 +99,35 @@ class Gmusicdownloader:
                 with open(path, 'wb') as f:
                     f.write(resp.content)
                 self.tagTrack(path, track)
-                print("{}✔️  {} -- {} {}".format(bColors.OKGREEN,
-                                                track['artist'],
-                                                track['title'],
-                                                bColors.ENDC))
-    
-    #Iterate over selected albums
+                print("{}✔️  {} -- {} {}".format(Colors.OKGREEN,
+                                                 track['artist'],
+                                                 track['title'],
+                                                 Colors.ENDC))
+
+    # Iterate over selected albums
     def downloadSelection(self, selection, search):
         for albumNum in self.parseSelection(selection):
 
             if albumNum > len(search['album_hits']):
                 raise ValueError('Invalid index: ' + str(albumNum))
-            album = self._api.get_album_info(search['album_hits'][albumNum - 1]['album']['albumId'])
+            album = self._api.get_album_info(
+                search['album_hits'][albumNum - 1]['album']['albumId'])
             print()
-            print(bColors.WARNING + 'Downloading ' + bColors.ENDC + 
-                  bColors.FAIL + album['albumArtist'] + ' -- ' + \
-                  album['name'] + '...' + bColors.ENDC)
+            print(Colors.WARNING + 'Downloading ' + Colors.ENDC +
+                  Colors.FAIL + album['albumArtist'] + ' -- ' +
+                  album['name'] + '...' + Colors.ENDC)
             self.downloadAlbum(album)
 
     def searchAndDownload(self):
         while True:
             print()
-            #Album search
-            searchStr = input(bColors.OKBLUE + bColors.BOLD + 
-                        "? Search for an album: " + bColors.ENDC)
+            # Album search
+            searchStr = input(Colors.OKBLUE + Colors.BOLD +
+                              "? Search for an album: " + Colors.ENDC)
             print()
             search = self._api.search(searchStr, 20)
             if len(search['album_hits']) == 0:
-                print(bColors.FAIL + "Nothing found!" + bColors.ENDC)
+                print(Colors.FAIL + "Nothing found!" + Colors.ENDC)
                 print()
                 continue
             if 'album_hits' in search:
@@ -146,26 +139,28 @@ class Gmusicdownloader:
                                                      album['name'])
                     if 'year' in album:
                         albumStr += " ({})".format(str(album['year']))
-                    print(bColors.HEADER + albumStr + bColors.ENDC)
+                    print(Colors.HEADER + albumStr + Colors.ENDC)
                     albumCounter += 1
                 print()
-                selection = input(bColors.OKBLUE + bColors.BOLD + 
-                            '? Album to download (eg. 1, 2, 3.. or 1-3) or (b)ack or (e)xit: ' 
-                            + bColors.ENDC)
+                selection = input(Colors.OKBLUE + Colors.BOLD +
+                                  '? Album to download (eg. 1, 2, 3.. or 1-3) or (b)ack or (e)xit: '
+                                  + Colors.ENDC)
                 if selection == 'e':
                     sys.exit(0)
                 elif selection == 'b':
                     continue
             self.downloadSelection(selection, search)
+
     def sync(self):
         library = self._api.get_all_songs()
-        library = sorted(library, key=lambda k: (k['artist'], k['album'], k['trackNumber'])) 
+        library = sorted(library, key=lambda k: (
+            k['artist'], k['album'], k['trackNumber']))
         print()
         for track in library:
-    
-            dirpath = "{}/{}/{}".format(self.outputDir, 
-                                                self.escapeName(track['albumArtist']),
-                                                self.escapeName(track['album']))
+
+            dirpath = "{}/{}/{}".format(self.output_dir,
+                                        self.escapeName(track['albumArtist']),
+                                        self.escapeName(track['album']))
             dirpath = unidecode.unidecode(dirpath)
             if not os.path.isdir(dirpath):
                 os.makedirs(dirpath)
@@ -173,7 +168,7 @@ class Gmusicdownloader:
             self.downloadCover(dirpath, track)
             trackId = track['nid']
             path = dirpath + "/{} {}.mp3".format(str(track['trackNumber']).zfill(2),
-                                                    self.escapeName(track['title']))
+                                                 self.escapeName(track['title']))
             path = unidecode.unidecode(path)
             if not os.path.exists(path):
                 stream = self._api.get_stream_url(trackId)
@@ -181,15 +176,16 @@ class Gmusicdownloader:
                 with open(path, 'wb') as f:
                     f.write(resp.content)
                 self.tagTrack(path, track)
-                print("{}✔️  {} -- {} {}".format(bColors.OKGREEN,
-                                                track['artist'],
-                                                track['title'],
-                                                bColors.ENDC))
+                print("{}✔️  {} -- {} {}".format(Colors.OKGREEN,
+                                                 track['artist'],
+                                                 track['title'],
+                                                 Colors.ENDC))
+
 
 if __name__ == "__main__":
-    #Argument parsing
-    parser = argparse.ArgumentParser(description=
-                                    'Google Play Music album downloader')
+    # Argument parsing
+    parser = argparse.ArgumentParser(
+        description='Google Play Music album downloader')
     parser.add_argument('-e', '--email',
                         help='Google Play Music email')
 
@@ -207,37 +203,36 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    #Disable eyeD3 logging
+    # Disable eyeD3 logging
     eyed3log = logging.getLogger('eyed3.mp3.headers')
     eyed3log.disabled = True
     eyed3log = logging.getLogger('eyed3.id3')
     eyed3log.disabled = True
 
-    #Logging in
+    # Logging in
     if not args.email:
-        args.email = input(bColors.BOLD + \
-                           "? Enter Google Play Music email: " + \
-                           bColors.ENDC)
+        args.email = input(Colors.BOLD +
+                           "? Enter Google Play Music email: " +
+                           Colors.ENDC)
 
     if not args.password:
-        args.password = getpass.getpass(bColors.BOLD + \
-                           "? Enter Google Play Music password: " + \
-                           bColors.ENDC)
+        args.password = getpass.getpass(Colors.BOLD +
+                                        "? Enter Google Play Music password: " +
+                                        Colors.ENDC)
 
     if not args.deviceid:
-        args.deviceid = input(bColors.BOLD + \
-                           "? Enter Google Play Music device ID: " + \
-                           bColors.ENDC)
+        args.deviceid = input(Colors.BOLD +
+                              "? Enter Google Play Music device ID: " +
+                              Colors.ENDC)
 
     if not args.output:
         args.output = os.getcwd()
-    downloader = Gmusicdownloader(args.email,
-                                  args.password,
-                                  args.deviceid,
-                                  args.output)
+    downloader = GMusicDL(args.email,
+                          args.password,
+                          args.deviceid,
+                          args.output)
 
     if args.sync:
         downloader.sync()
     else:
         downloader.searchAndDownload()
-
